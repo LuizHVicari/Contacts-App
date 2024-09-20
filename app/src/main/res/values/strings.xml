@@ -9,4 +9,5 @@
     <string name="nothing_here">Nada por aqui</string>
     <string name="not_contact_added">Você ainda não adicionou nenhum contato\n Adicione o primerio contato utilizando o botão \"Novo Contato\"</string>
     <string name="no_data">Não há dados</string>
+    <string name="favorite">Favoritar</string>
 </resources>

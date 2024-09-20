@@ -1,6 +1,5 @@
 package com.luizvicari.contacts.ui.contact
 
-import android.provider.ContactsContract.Contacts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,31 +9,65 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarColors
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.luizvicari.contacts.R
+import com.luizvicari.contacts.data.Contact
 import com.luizvicari.contacts.ui.enums.Sizes
 import com.luizvicari.contacts.ui.theme.ContactsTheme
+import kotlin.random.Random
 
 @Composable
 fun ContactsListScreen(modifier: Modifier = Modifier) {
+    val isLoading = true
+    val hasError = false
+    val contacts = listOf<Contact>()
 
+    Scaffold(
+        topBar = { AppBar() },
+        modifier = modifier.fillMaxSize()
+    ) {
+        paddingValues ->
+        val defaultModifier = Modifier.padding(paddingValues)
+        if (isLoading) {
+            LoadingContent()
+        } else if (hasError) {
+            ErrorContent(
+                modifier = defaultModifier,
+                onTryAgainPressed = {}
+            )
+        } else if (contacts.isEmpty()) {
+            EmptyList()
+        } else {
+            List(
+                modifier = defaultModifier,
+                contacts = contacts
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +75,10 @@ fun ContactsListScreen(modifier: Modifier = Modifier) {
 fun AppBar(modifier: Modifier = Modifier) {
     TopAppBar(
         modifier = modifier.fillMaxWidth(),
-        title = { Text(text= stringResource(R.string.my_contacts)) }
+        title = { Text(text= stringResource(R.string.my_contacts)) },
+        colors = TopAppBarDefaults.topAppBarColors(
+            titleContentColor = MaterialTheme.colorScheme.primary
+        )
     )
 }
 
@@ -135,16 +171,37 @@ private fun EmptyList(modifier: Modifier = Modifier) {
 @Composable()
 private fun List(
     modifier: Modifier = Modifier,
-    contacts: List<Contacts>
+    contacts: List<Contact>
     ) {
     Column(
         modifier = modifier
     ) {
         contacts.forEach{ contact ->
+            var isFavorite = contact.isFavorite
             ListItem(
                 headlineContent = {
-
-                })
+                    Text(text = contact.firstName + contact.lastName)
+                },
+                leadingContent = {},
+                trailingContent = {
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = if (isFavorite) {
+                                Icons.Filled.Favorite
+                            } else {
+                                Icons.Filled.FavoriteBorder
+                            },
+                            contentDescription = stringResource(R.string.favorite),
+                            tint = if (isFavorite) {
+                                Color.Red
+                            } else {
+                                LocalContentColor.current
+                            }
+                        )
+                        
+                    }
+                }
+                )
 
         }
     }
@@ -155,8 +212,35 @@ private fun List(
 @Composable()
 private fun ListPreview(modifier: Modifier = Modifier) {
     ContactsTheme {
-        List()
+        List(
+            contacts = mockContacts()
+        )
     }
+}
+
+private fun mockContacts(): List<Contact> {
+    val firstNames = listOf("João", "José", "Joana", "Everton", "Marcos", "André", "Anderson", "Antônio")
+    val lastNames = listOf("Silva", "Oliveira", "Cardoso", "Brasil", "Santos", "Cordeiro")
+    val contacts: MutableList<Contact> = mutableListOf()
+    for (i in 0 .. 19) {
+        var generatedContact = false
+        while (!generatedContact) {
+            val isFavorite: Boolean = Random.nextInt(2) >= 1
+            val firstNameIndex = Random.nextInt(firstNames.size)
+            val lastNameIndex = Random.nextInt(lastNames.size)
+            val newContact = Contact(
+                i+1,
+                firstNames[firstNameIndex],
+                firstNames[lastNameIndex],
+                isFavorite = isFavorite
+            )
+            if (!contacts.any { it.firstName == newContact.firstName && it.lastName == newContact.lastName}) {
+                contacts.add(newContact)
+                generatedContact = true
+            }
+        }
+    }
+    return contacts
 }
 
 @Preview(showBackground = true)

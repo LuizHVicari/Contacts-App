@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.luizvicari.contacts.ui.theme.ContactsTheme
 import androidx.compose.ui.unit.dp
+import com.luizvicari.contacts.ui.contact.ContactsListScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -28,14 +29,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ContactsTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    innerPadding ->
-                    Box(contentAlignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize()) {
-                        Greeting(name ="Android", modifier = Modifier.padding(innerPadding) )
-                    }
-                }
+                ContactsListScreen()
             }
         }
     }
