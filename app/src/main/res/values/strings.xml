@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">Contacts</string>
+    <string name="my_contacts">My contacts</string>
+    <string name="loading_your_contacts">Loading your contacts</string>
+    <string name="an_error_happened">An error happened</string>
+    <string name="loading_error">Não foi possível carregar os contatos</string>
+    <string name="wait_and_try_again">Aguarde um momento e tente novamente</string>
+    <string name="try_again">Tentar Novamente</string>
+    <string name="nothing_here">Nada por aqui</string>
+    <string name="not_contact_added">Você ainda não adicionou nenhum contato\n Adicione o primerio contato utilizando o botão \"Novo Contato\"</string>
+    <string name="no_data">Não há dados</string>
 </resources>
