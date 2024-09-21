@@ -1,7 +1,10 @@
-package com.luizvicari.contacts.ui.contact
+package com.luizvicari.contacts.ui.contact.list
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,8 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudOff
@@ -28,17 +29,17 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarColors
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,89 +50,79 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.luizvicari.contacts.R
 import com.luizvicari.contacts.data.Contact
+import com.luizvicari.contacts.data.ContactDataSource
+import com.luizvicari.contacts.data.groupByInitial
+import com.luizvicari.contacts.data.mockContacts
 import com.luizvicari.contacts.ui.enums.Sizes
 import com.luizvicari.contacts.ui.theme.ContactsTheme
+import com.luizvicari.contacts.ui.utils.composables.ContactAvatar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 @Composable
 fun ContactsListScreen(
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope = rememberCoroutineScope()
     ) {
-    val isInitialComposition = rememberSaveable {
-        mutableStateOf(true)
-    }
-    val isLoading = rememberSaveable{ mutableStateOf(false) }
-    val hasError = rememberSaveable{ mutableStateOf(false) }
-    val contacts: MutableState<List<Contact>> = rememberSaveable { mutableStateOf(listOf()) }
+    var isInitialComposition: Boolean by rememberSaveable { mutableStateOf(false) }
+    var uiState: ContactListUiState by remember { mutableStateOf(ContactListUiState())}
 
     val loadContacts: () -> Unit = {
-        isLoading.value = true
-        hasError.value = false
+        uiState = uiState.copy(isLoading = true, hasError = false)
 
         coroutineScope.launch {
-            delay(2000)
-            hasError.value = Random.nextBoolean()
-            if (!hasError.value) {
-                val isEmpty = Random.nextBoolean()
-                contacts.value = if (isEmpty) {
-                    listOf()
-                } else {
-                    mockContacts()
-                }
-            }
-            isLoading.value = false
+            delay(500)
+            uiState = uiState.copy(
+                contacts = ContactDataSource.instance.findAllAsMap(),
+                isLoading = false
+            )
         }
     }
 
-    if (isInitialComposition.value) {
+    if (isInitialComposition) {
         loadContacts()
-        isInitialComposition.value = false
+        isInitialComposition = false
+    }
+
+    val toggleFavorite: (Contact) -> Unit = { contact ->
+        val updatedContact = contact.copy(isFavorite = !contact.isFavorite)
+        ContactDataSource.instance.save(updatedContact)
+        uiState = uiState.copy(
+            contacts = ContactDataSource.instance.findAllAsMap()
+        )
     }
 
     Scaffold(
         topBar = { AppBar(onRefreshPressed = loadContacts) },
         modifier = modifier.fillMaxSize(),
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = {
-                contacts.value = contacts.value.plus(
-                    Contact(
-                        firstName = "Teste",
-                        lastName = "Teste",
-                        isFavorite = false,
-                        id = contacts.value.size + 1
-                    )
-                )
-            }) {
+            ExtendedFloatingActionButton(onClick = { }) {
                 Icon(
                     imageVector = Icons.Filled.Add,
                     contentDescription = stringResource(R.string.add)
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(stringResource(R.string.new_contact))
-
-                
             }
         }
     ) {
         paddingValues ->
         val defaultModifier = Modifier.padding(paddingValues)
-        if (isLoading.value) {
+        if (uiState.isLoading) {
             LoadingContent()
-        } else if (hasError.value) {
+        } else if (uiState.hasError) {
             ErrorContent(
                 modifier = defaultModifier,
                 onTryAgainPressed = loadContacts
             )
-        } else if (contacts.value.isEmpty()) {
+        } else if (uiState.contacts.isEmpty()) {
             EmptyList()
         } else {
             List(
                 modifier = defaultModifier,
-                contacts = contacts.value
+                contacts = uiState.contacts,
+                onFavoritePressed = toggleFavorite
             )
         }
     }
@@ -194,7 +185,7 @@ private fun ErrorContent(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         Icon(
             imageVector = Icons.Filled.CloudOff,
@@ -221,7 +212,7 @@ private fun ErrorContent(
     }
 }
 
-@Composable()
+@Composable
 private fun EmptyList(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
@@ -249,44 +240,67 @@ private fun EmptyList(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable()
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun List(
     modifier: Modifier = Modifier,
-    contacts: List<Contact>
+    contacts: Map<String, List<Contact>>,
+    onFavoritePressed: (Contact) -> Unit
     ) {
     LazyColumn(
         modifier = modifier
     ) {
-        items(contacts) {
-            contact ->
-            ContactListItem(contact=contact)
+        contacts.forEach { (initial, contacts) ->
+            stickyHeader {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                ) {
+                    Text(
+                        text = initial,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .padding(start = 16.dp),
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+
+            items(contacts) {
+                contact ->
+                ContactListItem(contact=contact, onFavoritePressed = onFavoritePressed)
+            }
         }
     }
 }
 
-@Composable()
+@Composable
 private fun ContactListItem(
-    modifier: Modifier = Modifier,
-    contact: Contact
+//    modifier: Modifier = Modifier,
+    contact: Contact,
+    onFavoritePressed: (Contact) -> Unit
 ) {
-    val isFavorite: MutableState<Boolean> = rememberSaveable { mutableStateOf(contact.isFavorite) }
     ListItem(
         headlineContent = {
             Text(text = contact.firstName + " " + contact.lastName)
         },
-        leadingContent = {},
+        leadingContent = {
+            ContactAvatar(firstName = contact.firstName, lastName = contact.lastName )
+        },
         trailingContent = {
-            IconButton(onClick = {
-                isFavorite.value = !isFavorite.value
-            }) {
+            IconButton(onClick = { onFavoritePressed( contact )}) {
                 Icon(
-                    imageVector = if (isFavorite.value) {
+                    imageVector = if (contact.isFavorite) {
                         Icons.Filled.Favorite
                     } else {
                         Icons.Filled.FavoriteBorder
                     },
                     contentDescription = stringResource(R.string.favorite),
-                    tint = if (isFavorite.value) {
+                    tint = if (contact.isFavorite) {
                         Color.Red
                     } else {
                         LocalContentColor.current
@@ -300,42 +314,20 @@ private fun ContactListItem(
 
 
 @Preview(showBackground = true)
-@Composable()
+@Composable
 private fun ListPreview(modifier: Modifier = Modifier) {
     ContactsTheme {
         List(
-            contacts = mockContacts()
+            contacts = mockContacts().groupByInitial(),
+            onFavoritePressed = {}
         )
     }
 }
 
-private fun mockContacts(): List<Contact> {
-    val firstNames = listOf("João", "José", "Joana", "Everton", "Marcos", "André", "Anderson", "Antônio")
-    val lastNames = listOf("Silva", "Oliveira", "Cardoso", "Brasil", "Santos", "Cordeiro")
-    val contacts: MutableList<Contact> = mutableListOf()
-    for (i in 0 .. 19) {
-        var generatedContact = false
-        while (!generatedContact) {
-            val isFavorite: Boolean = Random.nextInt(2) >= 1
-            val firstNameIndex = Random.nextInt(firstNames.size)
-            val lastNameIndex = Random.nextInt(lastNames.size)
-            val newContact = Contact(
-                i+1,
-                firstNames[firstNameIndex],
-                lastNames[lastNameIndex],
-                isFavorite = isFavorite
-            )
-            if (!contacts.any { it.firstName == newContact.firstName && it.lastName == newContact.lastName}) {
-                contacts.add(newContact)
-                generatedContact = true
-            }
-        }
-    }
-    return contacts
-}
+
 
 @Preview(showBackground = true)
-@Composable()
+@Composable
 private fun EmptyListPreview() {
     ContactsTheme {
         EmptyList()

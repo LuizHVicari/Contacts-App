@@ -13,4 +13,15 @@
     <string name="add">Adicionar</string>
     <string name="new_contact">Novo contato</string>
     <string name="refresh">Atualizar</string>
+    <string name="return_screen">Voltar</string>
+    <string name="edit">Editar</string>
+    <string name="delete">Deletar</string>
+    <string name="call">Ligar</string>
+    <string name="send_sms">Texto</string>
+    <string name="video_call">Vídeo</string>
+    <string name="send_email">E-mail</string>
+    <string name="contact_info">Informações de contato</string>
+    <string name="add_phone">Adicionar número de telefone</string>
+    <string name="add_mail">Adicionar endereço de e-mail</string>
+    <string name="created_at_date">Adicionado em %1$s</string>
 </resources>
