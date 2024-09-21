@@ -10,4 +10,7 @@
     <string name="not_contact_added">Você ainda não adicionou nenhum contato\n Adicione o primerio contato utilizando o botão \"Novo Contato\"</string>
     <string name="no_data">Não há dados</string>
     <string name="favorite">Favoritar</string>
+    <string name="add">Adicionar</string>
+    <string name="new_contact">Novo contato</string>
+    <string name="refresh">Atualizar</string>
 </resources>
