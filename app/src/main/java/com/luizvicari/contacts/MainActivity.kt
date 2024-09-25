@@ -9,6 +9,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.luizvicari.contacts.ui.App
+import com.luizvicari.contacts.ui.contact.details.ContactDetailScreen
 import com.luizvicari.contacts.ui.theme.ContactsTheme
 import com.luizvicari.contacts.ui.contact.list.ContactsListScreen
 
@@ -20,7 +22,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ContactsTheme {
-                ContactsListScreen()
+                App()
             }
         }
     }

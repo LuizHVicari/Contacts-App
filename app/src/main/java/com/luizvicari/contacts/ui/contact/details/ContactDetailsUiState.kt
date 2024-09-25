@@ -5,5 +5,6 @@ import com.luizvicari.contacts.data.Contact
 data class ContactDetailsUiState(
     val isLoading: Boolean = false,
     val hasError: Boolean = false,
-    val contact: Contact
+    val contact: Contact = Contact(),
+    val showConfirmationDialog: Boolean = false
 )

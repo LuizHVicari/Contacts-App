@@ -1,5 +1,6 @@
 package com.luizvicari.contacts.ui.contact.details
 
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,9 +30,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,29 +49,115 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.luizvicari.contacts.R
 import com.luizvicari.contacts.data.Contact
+import com.luizvicari.contacts.data.ContactDataSource
 import com.luizvicari.contacts.ui.theme.ContactsTheme
 import com.luizvicari.contacts.ui.utils.composables.ContactAvatar
+import com.luizvicari.contacts.ui.utils.composables.DefaultErrorContent
+import com.luizvicari.contacts.ui.utils.composables.DefaultLoadingContent
 import com.luizvicari.contacts.ui.utils.composables.FavoriteIconButton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun ContactDetailScreen(modifier: Modifier = Modifier) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            AppBar(
-                isDeleting = false,
-                contact = Contact(),
-                onBackPressed= {},
-                onDeletePressed= {},
-                onEditPressed= {},
-                onFavoritePressed= {}
+fun ContactDetailScreen(
+    modifier: Modifier = Modifier,
+    contactId: Int,
+    coroutineScope: CoroutineScope = rememberCoroutineScope(),
+    onBackPressed: () -> Unit,
+    onContactDelete: () -> Unit,
+    onEditPressed: () -> Unit
+) {
+    var isInitialComposition: Boolean by rememberSaveable { mutableStateOf(true) }
+    var uiState: ContactDetailsUiState by remember { mutableStateOf(ContactDetailsUiState()) }
+    val contentModifier: Modifier = modifier.fillMaxSize()
 
-            )
+    val loadContact : () -> Unit = {
+        uiState = uiState.copy(
+            isLoading = true,
+            hasError = false
+        )
+        coroutineScope.launch {
+            delay(2000)
+            val contact = ContactDataSource.instance.findById(contactId)
+            uiState = if (contact == null ) {
+                uiState.copy(
+                    hasError = true,
+                    isLoading = false
+                )
+            } else {
+                uiState.copy(
+                    isLoading = false,
+                    contact = contact
+                )
+            }
         }
-    ) {
-
     }
+
+    if (isInitialComposition) {
+        loadContact()
+        isInitialComposition = false
+    }
+
+    if (uiState.showConfirmationDialog) {
+        ConfirmationDialog(
+            content = stringResource(R.string.this_contact_will_be_removed),
+            onDismiss = {
+                uiState = uiState.copy(
+                    showConfirmationDialog = false
+                )
+            },
+            onConfirm = {
+                ContactDataSource.instance.delete(uiState.contact)
+                onContactDelete()
+            })
+    }
+
+    if (uiState.isLoading) {
+        DefaultLoadingContent(
+            modifier = contentModifier
+        )
+    } else if (uiState.hasError) {
+        DefaultErrorContent(
+            modifier = contentModifier,
+            onTryAgainPressed = {}
+        )
+    } else {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            topBar = {
+                AppBar(
+                    isDeleting = false,
+                    contact = Contact(),
+                    onBackPressed= onBackPressed,
+                    onDeletePressed= {
+                        uiState = uiState.copy(showConfirmationDialog = true)
+                    },
+                    onEditPressed= onEditPressed,
+                    onFavoritePressed= {
+                        val updatedContact = uiState.contact.copy(
+                            isFavorite = !uiState.contact.isFavorite
+                        )
+                        ContactDataSource.instance.save(updatedContact)
+                        uiState = uiState.copy(
+                            contact = ContactDataSource.instance.save(updatedContact)
+                        )
+                    }
+
+                )
+            }
+        ) { paddingValues ->
+            ContactDetails(
+                modifier = Modifier.padding(paddingValues),
+                contact = uiState.contact,
+                isDeleting = false,
+                onEditPressed = onEditPressed
+                )
+
+        }
+    }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,7 +224,8 @@ private fun AppBar(
 private fun ContactDetails(
     modifier: Modifier = Modifier,
     contact: Contact,
-    isDeleting: Boolean = false
+    isDeleting: Boolean = false,
+    onEditPressed: () -> Unit
     ) {
     Column(
         modifier = modifier
@@ -157,25 +252,25 @@ private fun ContactDetails(
             QuickAction(
                 imageVector = Icons.Filled.Phone,
                 text = stringResource(R.string.call),
-                onPressed = { },
+                onPressed = onEditPressed,
                 enabled = contact.phoneNumber.isNotBlank()
             )
             QuickAction(
                 imageVector = Icons.Filled.Sms,
                 text = stringResource(R.string.send_sms),
-                onPressed = { },
+                onPressed = onEditPressed,
                 enabled = contact.phoneNumber.isNotBlank()
             )
             QuickAction(
                 imageVector = Icons.Filled.Videocam,
                 text = stringResource(R.string.video_call),
-                onPressed = { },
+                onPressed = onEditPressed,
                 enabled = contact.phoneNumber.isNotBlank()
             )
             QuickAction(
                 imageVector = Icons.Filled.Email,
                 text = stringResource(R.string.send_email),
-                onPressed = { },
+                onPressed = onEditPressed,
                 enabled = contact.email.isNotBlank()
             )
         }
@@ -276,6 +371,47 @@ private fun ContactInfo(
     }
 }
 
+@Composable
+private fun ConfirmationDialog(
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    content: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        modifier = modifier,
+        title = title?.let {
+            { Text(it) }
+        },
+        text = { Text(text = content) },
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(text = stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text= stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ConfirmationDialogPreview(
+) {
+    ContactsTheme {
+        ConfirmationDialog(
+            content = "esse é o conteúdo",
+            onDismiss = {  }) {
+
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun ContactInfoPreview() {
@@ -309,7 +445,8 @@ private fun QuickActionPreview(modifier: Modifier = Modifier) {
 private fun ContactDetailPreview(modifier: Modifier = Modifier) {
     ContactsTheme {
         ContactDetails(
-            contact = Contact()
+            contact = Contact(),
+            onEditPressed = {}
         )
     }
 }

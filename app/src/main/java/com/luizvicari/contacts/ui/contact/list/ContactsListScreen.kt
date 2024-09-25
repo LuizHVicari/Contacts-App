@@ -3,6 +3,7 @@ package com.luizvicari.contacts.ui.contact.list
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,9 +50,10 @@ import com.luizvicari.contacts.data.Contact
 import com.luizvicari.contacts.data.ContactDataSource
 import com.luizvicari.contacts.data.groupByInitial
 import com.luizvicari.contacts.data.mockContacts
-import com.luizvicari.contacts.ui.enums.Sizes
 import com.luizvicari.contacts.ui.theme.ContactsTheme
 import com.luizvicari.contacts.ui.utils.composables.ContactAvatar
+import com.luizvicari.contacts.ui.utils.composables.DefaultErrorContent
+import com.luizvicari.contacts.ui.utils.composables.DefaultLoadingContent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -63,7 +61,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContactsListScreen(
     modifier: Modifier = Modifier,
-    coroutineScope: CoroutineScope = rememberCoroutineScope()
+    coroutineScope: CoroutineScope = rememberCoroutineScope(),
+    onAddPressed: () -> Unit,
+    onContactPressed: (Contact) -> Unit
     ) {
     var isInitialComposition: Boolean by rememberSaveable { mutableStateOf(false) }
     var uiState: ContactListUiState by remember { mutableStateOf(ContactListUiState())}
@@ -97,7 +97,7 @@ fun ContactsListScreen(
         topBar = { AppBar(onRefreshPressed = loadContacts) },
         modifier = modifier.fillMaxSize(),
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { }) {
+            ExtendedFloatingActionButton(onClick = onAddPressed) {
                 Icon(
                     imageVector = Icons.Filled.Add,
                     contentDescription = stringResource(R.string.add)
@@ -110,9 +110,9 @@ fun ContactsListScreen(
         paddingValues ->
         val defaultModifier = Modifier.padding(paddingValues)
         if (uiState.isLoading) {
-            LoadingContent()
+            DefaultLoadingContent()
         } else if (uiState.hasError) {
-            ErrorContent(
+            DefaultErrorContent(
                 modifier = defaultModifier,
                 onTryAgainPressed = loadContacts
             )
@@ -122,7 +122,8 @@ fun ContactsListScreen(
             List(
                 modifier = defaultModifier,
                 contacts = uiState.contacts,
-                onFavoritePressed = toggleFavorite
+                onFavoritePressed = toggleFavorite,
+                onContactPressed = onContactPressed
             )
         }
     }
@@ -153,64 +154,7 @@ fun AppBar(
     )
 }
 
-@Composable
-private fun LoadingContent(modifier: Modifier = Modifier) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = modifier.fillMaxSize()
-    ) {
-        CircularProgressIndicator(
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.size(Sizes.CIRCULAR_PROGRESS_LARGE)
-        )
-        Spacer(modifier = Modifier.size(Sizes.CIRCULAR_PROGRESS_LARGE))
-        Text(
-            text = stringResource(R.string.loading_your_contacts),
-            style = MaterialTheme.typography.titleLarge.copy(
-                color = MaterialTheme.colorScheme.primary
-            )
-        )
-    }
-}
 
-@Composable
-private fun ErrorContent(
-    modifier: Modifier = Modifier,
-    onTryAgainPressed: () -> Unit
-) {
-    val defaultColor = MaterialTheme.colorScheme.primary
-    val textPadding = Modifier.padding(top=8.dp, start=8.dp, end=8.dp)
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = modifier.fillMaxSize()
-    ) {
-        Icon(
-            imageVector = Icons.Filled.CloudOff,
-            contentDescription = stringResource(R.string.an_error_happened)
-        )
-        Text(
-            modifier = textPadding,
-            text = stringResource(id = R.string.loading_error),
-            style = MaterialTheme.typography.titleLarge,
-            color = defaultColor
-        )
-        Text(
-            modifier =  textPadding,
-            text = stringResource(R.string.wait_and_try_again),
-            style =  MaterialTheme.typography.titleSmall,
-            color = defaultColor
-        )
-        ElevatedButton(
-            onClick = onTryAgainPressed,
-            modifier = Modifier.padding(top=16.dp)
-        ) {
-            Text(text = stringResource(R.string.try_again))
-        }
-    }
-}
 
 @Composable
 private fun EmptyList(modifier: Modifier = Modifier) {
@@ -245,7 +189,8 @@ private fun EmptyList(modifier: Modifier = Modifier) {
 private fun List(
     modifier: Modifier = Modifier,
     contacts: Map<String, List<Contact>>,
-    onFavoritePressed: (Contact) -> Unit
+    onFavoritePressed: (Contact) -> Unit,
+    onContactPressed: (Contact) -> Unit
     ) {
     LazyColumn(
         modifier = modifier
@@ -272,7 +217,10 @@ private fun List(
 
             items(contacts) {
                 contact ->
-                ContactListItem(contact=contact, onFavoritePressed = onFavoritePressed)
+                ContactListItem(
+                    contact=contact,
+                    onFavoritePressed = onFavoritePressed,
+                    onContactPressed = onContactPressed)
             }
         }
     }
@@ -280,11 +228,13 @@ private fun List(
 
 @Composable
 private fun ContactListItem(
-//    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier,
     contact: Contact,
-    onFavoritePressed: (Contact) -> Unit
+    onFavoritePressed: (Contact) -> Unit,
+    onContactPressed: (Contact) -> Unit
 ) {
     ListItem(
+        modifier = modifier.clickable { onContactPressed(contact) },
         headlineContent = {
             Text(text = contact.firstName + " " + contact.lastName)
         },
@@ -312,43 +262,23 @@ private fun ContactListItem(
     )
 }
 
-
 @Preview(showBackground = true)
 @Composable
 private fun ListPreview(modifier: Modifier = Modifier) {
     ContactsTheme {
         List(
             contacts = mockContacts().groupByInitial(),
-            onFavoritePressed = {}
+            onFavoritePressed = {},
+            onContactPressed = { }
         )
     }
 }
-
-
 
 @Preview(showBackground = true)
 @Composable
 private fun EmptyListPreview() {
     ContactsTheme {
         EmptyList()
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ErrorContentPreview() {
-    ContactsTheme {
-        ErrorContent(
-            onTryAgainPressed = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun LoadingContentPreview() {
-    ContactsTheme {
-        LoadingContent()
     }
 }
 

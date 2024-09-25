@@ -24,4 +24,7 @@
     <string name="add_phone">Adicionar número de telefone</string>
     <string name="add_mail">Adicionar endereço de e-mail</string>
     <string name="created_at_date">Adicionado em %1$s</string>
+    <string name="confirm">Confirmar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="this_contact_will_be_removed">Esse contato será removido</string>
 </resources>
